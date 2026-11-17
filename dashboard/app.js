@@ -127,6 +127,10 @@
       });
       method.appendChild(mt);
     }
+    if (DATA.sensitivity) {
+      var names = function (rows) { return rows.map(function (r) { return r.name + ' (' + fmtUsd(r.implied_value_usd) + ')'; }).join(' · '); };
+      method.appendChild(el('p', { class: 'sens', text: 'What would change this ranking? Price every category at the one global median and the top five become: ' + names(DATA.sensitivity.global_only) + '. Strip the momentum and maturity adjustments out and they become: ' + names(DATA.sensitivity.unadjusted) + '. The same names keep surfacing — the adjustments move values, not the story.' }));
+    }
     app.appendChild(method);
 
     // scatter: TVL vs implied value, log-log, one dot per protocol

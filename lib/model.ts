@@ -170,6 +170,15 @@ export interface RadarData {
   categories: CategoryMultiple[];
   rows: RadarRow[];
   live: LiveRow[];
+  /** Sensitivity: who tops the board under two simpler models, so the ranking's robustness is visible. */
+  sensitivity: { global_only: AltRow[]; unadjusted: AltRow[] };
+}
+
+/** One row of a sensitivity ranking: a protocol and its implied value under the variant model. */
+export interface AltRow {
+  slug: string;
+  name: string;
+  implied_value_usd: number;
 }
 
 /** Why the snapshot is not one this model can score. */
@@ -585,6 +594,18 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     categories: table,
     rows: board,
     live,
+    sensitivity: {
+      // The same board priced with one global multiple for every category.
+      global_only: [...board]
+        .map((r) => ({ slug: r.slug, name: r.name, implied_value_usd: Math.round(r.implied_value_usd * (globalMedian / r.model.category_multiple)) }))
+        .sort((a, b) => b.implied_value_usd - a.implied_value_usd)
+        .slice(0, 5),
+      // The same board with the momentum and maturity adjustments divided back out.
+      unadjusted: [...board]
+        .map((r) => ({ slug: r.slug, name: r.name, implied_value_usd: Math.round(r.implied_value_usd / (r.model.growth_multiplier * r.model.maturity_multiplier)) }))
+        .sort((a, b) => b.implied_value_usd - a.implied_value_usd)
+        .slice(0, 5),
+    },
   };
   return { board, radar };
 }
