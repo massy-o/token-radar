@@ -95,6 +95,8 @@ export interface BoardRow {
   implied_value_usd: number;
   launch_score: number;
   tier: string;
+  /** How much evidence backs the multiple: category peer count, discounted for missing data. */
+  confidence: 'high' | 'medium' | 'low';
   model: {
     category_multiple: number;
     category_peers: number;
@@ -327,6 +329,10 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
   scored.sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0));
   return scored.map((s, i) => {
     const score = (s as { score: number }).score;
+    // Confidence: a multiple priced off many tokenized peers is evidence; off one peer it
+    // is a hint. Missing age and momentum data each cost a level of trust.
+    let confidence: 'high' | 'medium' | 'low' = s.peers >= 8 ? 'high' : s.peers >= 3 ? 'medium' : 'low';
+    if (s.age === null && s.p.change_7d === null) confidence = confidence === 'high' ? 'medium' : 'low';
     return {
       rank: i + 1,
       slug: s.p.slug,
@@ -345,6 +351,7 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
       implied_value_usd: s.implied,
       launch_score: score,
       tier: tierFor(score),
+      confidence,
       model: {
         category_multiple: s.multiple,
         category_peers: s.peers,

@@ -176,7 +176,7 @@
         el('th', { text: '#' }), el('th', { text: 'Protocol' }), el('th', { text: 'Tier' }),
         el('th', { text: 'Category' }), el('th', { class: 'num', text: 'TVL' }),
         el('th', { class: 'num', text: '7d' }), el('th', { class: 'num', text: 'Implied value' }),
-        el('th', { class: 'num', text: 'Multiple' }), el('th', { text: 'Launch score' }), el('th', { text: 'Chains' })));
+        el('th', { class: 'num', text: 'Multiple' }), el('th', { text: 'Evidence' }), el('th', { text: 'Launch score' }), el('th', { text: 'Chains' })));
       var tbody = el('tbody');
       rows.forEach(function (r) {
         var pct = el('td', { class: 'num ' + (r.change_7d === null ? '' : r.change_7d >= 0 ? 'up' : 'down'), text: fmtPct(r.change_7d) });
@@ -196,6 +196,7 @@
           pct,
           el('td', { class: 'num', text: fmtUsd(r.implied_value_usd) }),
           el('td', { class: 'num', text: fmtMult(r.model.category_multiple) }),
+          el('td', null, el('span', { class: 'conf conf-' + r.confidence, text: '● ' + r.confidence })),
           scoreCell,
           el('td', { class: 'chains', text: r.chains.length ? r.chains.slice(0, 3).join(', ') + (r.chains.length > 3 ? ' +' + (r.chains.length - 3) : '') : '—' })));
       });
@@ -250,6 +251,7 @@
     bd.appendChild(el('tr', null, el('td', { text: '× growth multiplier — 7d change ' + fmtPct(r.model.growth_pct) + ', clamped to [−60%, +120%], weight 0.5' }), el('td', { class: 'n', text: r.model.growth_multiplier.toFixed(4) + '×' })));
     bd.appendChild(el('tr', null, el('td', { text: '× maturity multiplier — age ' + fmtAge(r.age_days) + ' against a 3-year horizon' }), el('td', { class: 'n', text: r.model.maturity_multiplier.toFixed(4) + '×' })));
     bd.appendChild(el('tr', { class: 'total' }, el('td', { text: '= implied value if it launched at snapshot prices' }), el('td', { class: 'n', text: usdFull.format(r.implied_value_usd) })));
+    bd.appendChild(el('tr', null, el('td', { text: 'Evidence behind the multiple: ' + r.model.category_peers + ' tokenized peer' + (r.model.category_peers === 1 ? '' : 's') + ' in this category' + (r.age_days === null && r.change_7d === null ? ', and this protocol reports neither age nor momentum' : '') }), el('td', { class: 'n', text: r.confidence.toUpperCase() })));
     detail.appendChild(el('section', { class: 'section' }, el('h2', { text: 'The model’s arithmetic' }), bd));
 
     if (r.chains.length) {
