@@ -70,6 +70,19 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .scorebar { height: 5px; background: #16233c; border-radius: 999px; margin-top: 4px; overflow: hidden; }
 .scorebar > div { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); }
 .chains { color: var(--dim); font-size: 12.5px; }
+.scatter { width: 100%; height: auto; display: block; }
+.scatter .grid { stroke: #16233c; stroke-width: 1; }
+.scatter .parity { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 5 5; opacity: 0.7; }
+.scatter .ax { fill: var(--faint); font-size: 11px; text-anchor: middle; }
+.scatter .axr { fill: var(--faint); font-size: 11px; text-anchor: end; }
+.scatter .dot { fill: #8ab6ff; opacity: 0.75; cursor: pointer; }
+.scatter .dot:hover { opacity: 1; stroke: #fff; stroke-width: 1; }
+.scatter .tierdot-S { fill: var(--gold); }
+.scatter .tierdot-A { fill: var(--accent); }
+.scatter .tierdot-B { fill: #8ab6ff; }
+.scatter .tierdot-C { fill: var(--dim); }
+.scatter .tierdot-D { fill: var(--faint); }
+.scatter .wl-dot { stroke: var(--gold); stroke-width: 1.6; opacity: 0.95; }
 .conf { font-size: 12px; text-transform: capitalize; white-space: nowrap; }
 .conf-high { color: var(--up); }
 .conf-medium { color: var(--gold); }

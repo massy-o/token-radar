@@ -128,6 +128,55 @@
     }
     app.appendChild(method);
 
+    // scatter: TVL vs implied value, log-log, one dot per protocol
+    (function () {
+      var NS = 'http://www.w3.org/2000/svg';
+      function svg(tag, attrs) {
+        var n = document.createElementNS(NS, tag);
+        Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+        for (var i = 2; i < arguments.length; i++) if (arguments[i]) n.appendChild(arguments[i]);
+        return n;
+      }
+      function txt(x, y, str, cls) {
+        var t = svg('text', { x: x, y: y, class: cls || 'ax' });
+        t.textContent = str;
+        return t;
+      }
+      var W = 1128, H = 300, L = 64, R = 16, T = 12, B = 34;
+      var xs = DATA.rows.map(function (r) { return Math.log10(Math.max(1, r.tvl_usd)); });
+      var ys = DATA.rows.map(function (r) { return Math.log10(Math.max(1, r.implied_value_usd)); });
+      var x0 = Math.floor(Math.min.apply(null, xs)), x1 = Math.ceil(Math.max.apply(null, xs));
+      var y0 = Math.floor(Math.min.apply(null, ys)), y1 = Math.ceil(Math.max.apply(null, ys));
+      var px = function (v) { return L + (v - x0) / (x1 - x0) * (W - L - R); };
+      var py = function (v) { return T + (y1 - v) / (y1 - y0) * (H - T - B); };
+      var plot = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'scatter', role: 'img', 'aria-label': 'Scatter plot of TVL against implied value for every board row' });
+      for (var gx = x0; gx <= x1; gx++) {
+        plot.appendChild(svg('line', { x1: px(gx), y1: T, x2: px(gx), y2: H - B, class: 'grid' }));
+        plot.appendChild(txt(Math.min(px(gx), W - 36), H - B + 18, fmtUsd(Math.pow(10, gx)), 'ax'));
+      }
+      for (var gy = y0; gy <= y1; gy++) {
+        plot.appendChild(svg('line', { x1: L, y1: py(gy), x2: W - R, y2: py(gy), class: 'grid' }));
+        plot.appendChild(txt(L - 8, py(gy) + 4, fmtUsd(Math.pow(10, gy)), 'axr'));
+      }
+      // the parity diagonal: implied == TVL
+      plot.appendChild(svg('line', { x1: px(Math.max(x0, y0)), y1: py(Math.max(x0, y0)), x2: px(Math.min(x1, y1)), y2: py(Math.min(x1, y1)), class: 'parity' }));
+      DATA.rows.forEach(function (r) {
+        var c = svg('circle', {
+          cx: px(Math.log10(Math.max(1, r.tvl_usd))), cy: py(Math.log10(Math.max(1, r.implied_value_usd))),
+          r: r.on_watchlist ? 5 : 3.6, class: 'dot tierdot-' + r.tier + (r.on_watchlist ? ' wl-dot' : ''),
+        });
+        var title = document.createElementNS(NS, 'title');
+        title.textContent = r.name + ' — TVL ' + fmtUsd(r.tvl_usd) + ', implied ' + fmtUsd(r.implied_value_usd) + ', tier ' + r.tier;
+        c.appendChild(title);
+        c.addEventListener('click', function () { state.selected = r.slug; renderDetail(r); window.scrollTo(0, 0); });
+        plot.appendChild(c);
+      });
+      app.appendChild(el('section', { class: 'method' },
+        el('h2', { text: 'The board at a glance — TVL against implied value' }),
+        el('p', { text: 'One dot per protocol, gold ring = on the house watchlist, colour = launch tier. The dashed line is parity (implied = TVL): above it, the market’s own category prices say a token would be worth more than the capital locked; below it, less. Click any dot for its detail.' }),
+        plot));
+    })();
+
     // controls
     var cats = [];
     var chains = [];
