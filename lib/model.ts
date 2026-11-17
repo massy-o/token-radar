@@ -458,6 +458,31 @@ function weeklyFor(p: SnapshotProtocol): string {
  * A protocol's farm plan: six steps, each an action with a cost and a time, derived from
  * the protocol's own record (category, chains, TVL, age) — never a hand-written list.
  */
+/** The risk that actually bites in each category, written as an instruction to respect it. */
+function riskNote(category: string | null): string {
+  switch (category) {
+    case 'Dexs':
+    case 'Yield Aggregator':
+      return 'Respect the category risk: liquidity positions suffer impermanent loss when prices move, so favour stable or correlated pairs and check the pool’s fee tier actually pays for the divergence';
+    case 'Lending':
+    case 'CDP':
+      return 'Respect the category risk: borrowing against volatile collateral can liquidate in a fast move, so keep any health factor comfortably above the protocol’s threshold and set an alert before adding size';
+    case 'Derivatives':
+      return 'Respect the category risk: perpetual positions pay funding and can be liquidated, so size the position so a 20% adverse move is survivable and treat funding flips as a cost, not noise';
+    case 'Basis Trading':
+      return 'Respect the category risk: a basis trade earns funding only until it flips, and funding can stay negative for weeks, so stay in only while the current rate pays for the exit cost';
+    case 'Prediction Market':
+      return 'Respect the category risk: capital in an open market is locked until settlement and the position can go to zero, so trade only questions where you hold an information edge';
+    case 'Risk Curators':
+    case 'Onchain Capital Allocator':
+      return 'Respect the category risk: a curator can re-allocate the vault into riskier markets without asking you, so re-read the vault’s current allocations monthly, not just at deposit time';
+    case 'RWA':
+      return 'Respect the category risk: real-world-asset positions redeem on the issuer’s schedule, not yours, so check redemption windows and KYC requirements before the capital is needed elsewhere';
+    default:
+      return 'Respect the category risk: smart-contract risk is real in every row of this board, so complete one full withdrawal cycle with the trial tranche before scaling, proving the exit instead of assuming it';
+  }
+}
+
 export function farmSteps(p: SnapshotProtocol, age: number | null): string[] {
   const chain = chainOf(p);
   const capital = capitalFor(p);
@@ -491,6 +516,7 @@ export function farmSteps(p: SnapshotProtocol, age: number | null): string[] {
       `the $${capital} stays deployed`,
       `${hold} days`,
     ],
+    [riskNote(p.category), 'nothing extra to spend; it prices the position honestly', '2 minutes to read'],
     [
       `When a points, rewards or claim page appears, reach it only from ${p.name}'s own site or verified account, and never pay a fee to claim an airdrop`,
       'nothing to check; a claim fee is a scam',
