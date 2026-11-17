@@ -101,6 +101,8 @@ export interface BoardRow {
   tier: string;
   /** How much evidence backs the multiple: category peer count, discounted for missing data. */
   confidence: 'high' | 'medium' | 'low';
+  /** The launch score decomposed: each component 0..100 before the fixed weights blend it. */
+  score_parts: ScoreParts;
   model: {
     category_multiple: number;
     category_peers: number;
@@ -127,6 +129,15 @@ export interface LiveRow {
   mcap_usd: number | null;
   change_7d: number | null;
   mcap_tvl: number | null;
+}
+
+/** The launch score's five components, each 0..100 before weighting. */
+export interface ScoreParts {
+  value: number;
+  momentum: number;
+  chains: number;
+  tvl: number;
+  maturity: number;
 }
 
 /** One category's multiple evidence, for the dashboard's model section. */
@@ -341,17 +352,19 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
   const logImplied = scored.map((s) => Math.log10(s.implied)).sort((a, b) => a - b);
   const logTvl = scored.map((s) => Math.log10(Math.max(1, s.p.tvl_usd))).sort((a, b) => a - b);
   const momentum = scored.map((s) => finite(s.p.change_7d, 0)).sort((a, b) => a - b);
-  for (const s of scored as Array<(typeof scored)[number] & { score: number }>) {
+  for (const s of scored as Array<(typeof scored)[number] & { score: number; parts: ScoreParts }>) {
     const breadth = Math.min(s.p.chains.length, 10) / 10;
     const maturity = Math.min((s.age ?? model.unknown_age_days) / model.maturity_days, 1);
-    s.score = Math.round(
-      100 *
-        (0.45 * percentile(logImplied, Math.log10(s.implied)) +
-          0.2 * percentile(momentum, finite(s.p.change_7d, 0)) +
-          0.15 * breadth +
-          0.1 * percentile(logTvl, Math.log10(Math.max(1, s.p.tvl_usd))) +
-          0.1 * maturity),
-    );
+    // The five components, each 0..100, kept beside the blended score so the dashboard can
+    // show exactly where a row's tier comes from — a score you cannot decompose is a guess.
+    s.parts = {
+      value: Math.round(100 * percentile(logImplied, Math.log10(s.implied))),
+      momentum: Math.round(100 * percentile(momentum, finite(s.p.change_7d, 0))),
+      chains: Math.round(100 * breadth),
+      tvl: Math.round(100 * percentile(logTvl, Math.log10(Math.max(1, s.p.tvl_usd)))),
+      maturity: Math.round(100 * maturity),
+    };
+    s.score = Math.round(0.45 * s.parts.value + 0.2 * s.parts.momentum + 0.15 * s.parts.chains + 0.1 * s.parts.tvl + 0.1 * s.parts.maturity);
   }
 
   scored.sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0));
@@ -380,6 +393,7 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
       implied_low_usd: s.impliedLow,
       above_leader: s.implied > s.leader && s.leader > 0,
       launch_score: score,
+      score_parts: (s as { parts: ScoreParts }).parts,
       tier: tierFor(score),
       confidence,
       model: {

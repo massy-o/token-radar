@@ -83,6 +83,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .scatter .tierdot-C { fill: var(--dim); }
 .scatter .tierdot-D { fill: var(--faint); }
 .scatter .wl-dot { stroke: var(--gold); stroke-width: 1.6; opacity: 0.95; }
+.anatomy { margin: 4px 0 18px; }
+.anatomy h3 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+.anat-row { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+.anat-label { flex: 0 0 250px; color: var(--dim); font-size: 13px; }
+.anat-row .scorebar { flex: 1; }
+.anat-val { flex: 0 0 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .conf { font-size: 12px; text-transform: capitalize; white-space: nowrap; }
 .conf-high { color: var(--up); }
 .conf-medium { color: var(--gold); }

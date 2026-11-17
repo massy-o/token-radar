@@ -294,6 +294,18 @@
       statCard('7d TVL change', fmtPct(r.change_7d), 'momentum input'),
       statCard('Launch score', String(r.launch_score) + ' / 100', 'tier ' + r.tier)));
 
+    // launch score anatomy: the five components, so the tier is auditable at a glance
+    var anatomy = el('div', { class: 'anatomy' });
+    anatomy.appendChild(el('h3', { text: 'Launch score anatomy — where the ' + r.launch_score + ' comes from' }));
+    [['Implied value percentile', 'value', '45%'], ['7-day momentum percentile', 'momentum', '20%'], ['Chain breadth', 'chains', '15%'], ['TVL percentile', 'tvl', '10%'], ['Maturity', 'maturity', '10%']].forEach(function (spec) {
+      var v = r.score_parts[spec[1]];
+      anatomy.appendChild(el('div', { class: 'anat-row' },
+        el('span', { class: 'anat-label', text: spec[0] + ' (' + spec[2] + ')' }),
+        el('span', { class: 'scorebar' }, el('i', { style: 'width:' + v + '%' })),
+        el('span', { class: 'anat-val', text: String(v) })));
+    });
+    detail.appendChild(anatomy);
+
     var bd = el('table', { class: 'breakdown' });
     bd.appendChild(el('tr', null, el('td', { text: 'TVL (snapshot)' }), el('td', { class: 'n', text: usdFull.format(r.tvl_usd) })));
     bd.appendChild(el('tr', null, el('td', { text: '× category multiple — ' + (r.category || 'uncategorised') + ' median over ' + r.model.category_peers + ' tokenized peers, shrunk to the global ' + fmtMult(DATA.global_median) }), el('td', { class: 'n', text: fmtMult(r.model.category_multiple) })));
