@@ -18,6 +18,7 @@
     watchOnly: params.get('watch') === '1',
     sort: params.get('sort') || 'implied',
     selected: params.get('slug') || null,
+    compare: (params.get('compare') || '').split(',').filter(Boolean).slice(0, 3),
   };
 
   var usdFull = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -209,6 +210,35 @@
     if (state.watchOnly) controls.querySelector('input[type="checkbox"]').checked = true;
     app.appendChild(controls);
 
+    var compareWrap = el('div', { id: 'compare-wrap' });
+    app.appendChild(compareWrap);
+
+    function renderCompare() {
+      compareWrap.textContent = '';
+      if (!state.compare.length) return;
+      var strip = el('div', { class: 'compare-strip' });
+      strip.appendChild(el('div', { class: 'compare-head', text: 'Comparing ' + state.compare.length + ' of up to 3 — the numbers the board ranks by, side by side' }));
+      var grid = el('div', { class: 'compare-grid' });
+      state.compare.forEach(function (slug) {
+        var r = DATA.rows.find(function (x) { return x.slug === slug; });
+        if (!r) return;
+        var col = el('div', { class: 'compare-col' },
+          el('button', { class: 'compare-x', text: '×', title: 'Remove from comparison', onclick: function () { state.compare = state.compare.filter(function (s) { return s !== slug; }); renderCompare(); refresh(); } }),
+          el('div', { class: 'compare-name', text: r.name, onclick: function () { state.selected = r.slug; renderDetail(r); window.scrollTo(0, 0); } }),
+          el('div', { class: 'compare-sub', text: '#' + r.rank + ' · tier ' + r.tier + ' · ' + (r.category || 'uncategorised') }),
+          el('div', { class: 'compare-row' }, el('span', { text: 'Implied' }), el('b', { text: fmtUsd(r.implied_value_usd) })),
+          el('div', { class: 'compare-row' }, el('span', { text: 'Conservative' }), el('b', { text: fmtUsd(r.implied_low_usd) })),
+          el('div', { class: 'compare-row' }, el('span', { text: 'TVL' }), el('b', { text: fmtUsd(r.tvl_usd) })),
+          el('div', { class: 'compare-row' }, el('span', { text: 'Multiple' }), el('b', { text: fmtMult(r.model.category_multiple) })),
+          el('div', { class: 'compare-row' }, el('span', { text: 'Launch score' }), el('b', { text: String(r.launch_score) })),
+          el('div', { class: 'compare-row' }, el('span', { text: 'Evidence' }), el('b', { text: r.confidence })),
+          el('div', { class: 'compare-row' }, el('span', { text: 'Chains' }), el('b', { text: String(r.chains.length) })));
+        grid.appendChild(col);
+      });
+      strip.appendChild(grid);
+      compareWrap.appendChild(strip);
+    }
+
     var tableWrap = el('div', { id: 'table-wrap' });
     app.appendChild(tableWrap);
 
@@ -225,7 +255,7 @@
         el('th', { text: '#' }), el('th', { text: 'Protocol' }), el('th', { text: 'Tier' }),
         el('th', { text: 'Category' }), el('th', { class: 'num', text: 'TVL' }),
         el('th', { class: 'num', text: '7d' }), el('th', { class: 'num', text: 'Implied value' }),
-        el('th', { class: 'num', text: 'Multiple' }), el('th', { text: 'Evidence' }), el('th', { text: 'Launch score' }), el('th', { text: 'Chains' })));
+        el('th', { class: 'num', text: 'Multiple' }), el('th', { text: 'Evidence' }), el('th', { text: 'Launch score' }), el('th', { text: 'Chains' }), el('th', { text: '' })));
       var tbody = el('tbody');
       rows.forEach(function (r) {
         var pct = el('td', { class: 'num ' + (r.change_7d === null ? '' : r.change_7d >= 0 ? 'up' : 'down'), text: fmtPct(r.change_7d) });
@@ -247,11 +277,23 @@
           el('td', { class: 'num', text: fmtMult(r.model.category_multiple) }),
           el('td', null, el('span', { class: 'conf conf-' + r.confidence, text: '● ' + r.confidence })),
           scoreCell,
-          el('td', { class: 'chains', text: r.chains.length ? r.chains.slice(0, 3).join(', ') + (r.chains.length > 3 ? ' +' + (r.chains.length - 3) : '') : '—' })));
+          el('td', { class: 'chains', text: r.chains.length ? r.chains.slice(0, 3).join(', ') + (r.chains.length > 3 ? ' +' + (r.chains.length - 3) : '') : '—' }),
+          el('td', null, el('button', {
+            class: 'cmp-btn' + (state.compare.includes(r.slug) ? ' on' : ''),
+            text: state.compare.includes(r.slug) ? '✓ compare' : '+ compare',
+            onclick: function (e) {
+              e.stopPropagation();
+              if (state.compare.includes(r.slug)) state.compare = state.compare.filter(function (s) { return s !== r.slug; });
+              else if (state.compare.length < 3) state.compare.push(r.slug);
+              renderCompare();
+              refresh();
+            },
+          }))));
       });
       table.appendChild(tbody);
       tableWrap.appendChild(table);
     }
+    renderCompare();
     refresh();
 
     // live evidence strip
