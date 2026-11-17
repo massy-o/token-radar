@@ -93,6 +93,10 @@ export interface BoardRow {
   on_watchlist: boolean;
   age_days: number | null;
   implied_value_usd: number;
+  /** The conservative end of the range: the same arithmetic at the category's p25 multiple. */
+  implied_low_usd: number;
+  /** Whether the base implied value prices this protocol above its category's current leader. */
+  above_leader: boolean;
   launch_score: number;
   tier: string;
   /** How much evidence backs the multiple: category peer count, discounted for missing data. */
@@ -131,6 +135,10 @@ export interface CategoryMultiple {
   peers: number;
   median: number;
   multiple: number;
+  /** The shrunk multiple from the peers' 25th-percentile ratio: the conservative end. */
+  p25_multiple: number;
+  /** The largest market cap among the category's tokenized peers: its current leader. */
+  leader_mcap_usd: number;
 }
 
 /** Everything the dashboard needs: the board, the live set, and the model it runs. */
@@ -192,18 +200,29 @@ export function categoryMultiples(snapshot: Snapshot, model: ModelConstants): { 
   const ratioOf = (p: SnapshotProtocol): number => Math.min(model.ratio_cap, Math.max(model.ratio_floor, p.mcap_usd! / p.tvl_usd));
   const globalMedian = peers.length > 0 ? median(peers.map(ratioOf)) : 0;
   const groups = new Map<string, number[]>();
+  const leaders = new Map<string, number>();
   for (const p of peers) {
     const key = p.category ?? '(uncategorised)';
     const list = groups.get(key) ?? [];
     list.push(ratioOf(p));
     groups.set(key, list);
+    leaders.set(key, Math.max(leaders.get(key) ?? 0, p.mcap_usd!));
   }
+  const shrink = (n: number, value: number): number => (n * value + model.shrink_prior_weight * globalMedian) / (n + model.shrink_prior_weight);
   const table: CategoryMultiple[] = [];
   const byCategory = new Map<string, CategoryMultiple>();
   for (const [category, ratios] of groups) {
     const med = median(ratios);
-    const multiple = (ratios.length * med + model.shrink_prior_weight * globalMedian) / (ratios.length + model.shrink_prior_weight);
-    const row: CategoryMultiple = { category, peers: ratios.length, median: round4(med), multiple: round4(multiple) };
+    const sorted = [...ratios].sort((a, b) => a - b);
+    const p25 = sorted[Math.floor(0.25 * (sorted.length - 1))]!;
+    const row: CategoryMultiple = {
+      category,
+      peers: ratios.length,
+      median: round4(med),
+      multiple: round4(shrink(ratios.length, med)),
+      p25_multiple: round4(shrink(ratios.length, p25)),
+      leader_mcap_usd: leaders.get(category) ?? 0,
+    };
     table.push(row);
     byCategory.set(category, row);
   }
@@ -301,12 +320,21 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
   }
 
   const { globalMedian, byCategory } = categoryMultiples(snapshot, model);
-  const fallback: CategoryMultiple = { category: '(uncategorised)', peers: 0, median: round4(globalMedian), multiple: round4(globalMedian) };
+  const globalLeader = snapshot.protocols.reduce((m, p) => Math.max(m, p.mcap_usd ?? 0), 0);
+  const fallback: CategoryMultiple = {
+    category: '(uncategorised)',
+    peers: 0,
+    median: round4(globalMedian),
+    multiple: round4(globalMedian),
+    p25_multiple: round4(globalMedian),
+    leader_mcap_usd: globalLeader,
+  };
 
   const scored = [...chosen.values()].map((p) => {
     const cm = byCategory.get(p.category ?? '(uncategorised)') ?? fallback;
     const { implied, growthPct, growthMult, maturityMult, age } = impliedValue(p, snapshot.as_of, model, cm.multiple);
-    return { p, implied, growthPct, growthMult, maturityMult, age, multiple: cm.multiple, peers: cm.peers };
+    const low = impliedValue(p, snapshot.as_of, model, cm.p25_multiple).implied;
+    return { p, implied, impliedLow: low, leader: cm.leader_mcap_usd, growthPct, growthMult, maturityMult, age, multiple: cm.multiple, peers: cm.peers };
   });
 
   // Launch score inputs, ranked across the whole board so the score is relative evidence.
@@ -349,6 +377,8 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
       on_watchlist: watch.has(s.p.slug),
       age_days: s.age,
       implied_value_usd: s.implied,
+      implied_low_usd: s.impliedLow,
+      above_leader: s.implied > s.leader && s.leader > 0,
       launch_score: score,
       tier: tierFor(score),
       confidence,
